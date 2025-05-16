@@ -8,40 +8,44 @@ pipeline {
     stages {
         stage('Clean Workspace') {
             steps {
-                script {
-                    echo 'Cleaning up the workspace...'
-                    sh 'rm -rf $REPO_NAME $VENV_DIR'  // Remove old repo and virtual environment if they exist
-                }
+                echo 'Cleaning up the workspace...'
+                sh 'rm -rf $REPO_NAME $VENV_DIR'
             }
         }
         stage('Clone Repository') {
             steps {
-                script {
-                    echo 'Cloning the Python project...'
-                    sh 'git clone https://github.com/shafnajasir234/jenkinspyton.git'
-                }
+                echo 'Cloning the Python project...'
+                sh 'git clone https://github.com/shafnajasir234/jenkinspyton.git'
             }
         }
         stage('Setup Virtual Environment') {
             steps {
-                script {
-                    echo 'Creating Virtual Environment...'
-                    // Create a new virtual environment
-                    sh 'python3 -m venv $VENV_DIR'
-                    
-                    echo 'Installing Dependencies...'
-                    // Activate the virtual environment and install the required dependencies
-                    sh '. $VENV_DIR/bin/activate && pip install -r $REPO_NAME/requirements.txt'
-                }
+                echo 'Creating Virtual Environment...'
+                sh 'python3 -m venv $VENV_DIR'
+                
+                echo 'Installing Dependencies...'
+                sh '. $VENV_DIR/bin/activate && pip install --upgrade pip'
+                sh ". $VENV_DIR/bin/activate && pip install -r $REPO_NAME/requirements.txt"
             }
         }
-        stage('Run Application') {
+        stage('Run Flask Application') {
             steps {
-                script {
-                    echo 'Starting the Python application...'
-                    // Activate the virtual environment and start the app
-                    sh '. $VENV_DIR/bin/activate && nohup python $REPO_NAME/app.py &'
-                }
+                echo 'Starting the Flask application in background with logging...'
+                sh """
+                    . $VENV_DIR/bin/activate && \
+                    nohup python $REPO_NAME/app.py > flask_app.log 2>&1 &
+                """
+            }
+        }
+        stage('Verify Flask Application') {
+            steps {
+                echo 'Checking if Flask app started successfully...'
+                // Sleep for a few seconds to allow app to start
+                sh 'sleep 5'
+                // Check if the app.py process is running
+                sh "ps aux | grep '[a]pp.py' || echo 'Flask app is not running'"
+                // Optional: Show last 10 lines of the log file for debugging
+                sh 'tail -n 10 flask_app.log || echo "No log file found"'
             }
         }
     }
